@@ -1,0 +1,17 @@
+*.log
+*.sql
+*.sqlite
+*.tar
+*.jar
+*.zip
+*.gz
+*.7z
+
+
+.DS_Store
+.DS_Store?
+Thumbs.db
+settings.php
+
+files/
+

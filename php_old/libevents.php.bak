@@ -1,0 +1,265 @@
+<?php
+
+/*
+Sample codes from:
+#
+## Express Station Proxy Server for WebPAC Access
+#
+/www/proxy/webpac/index.php
+*/
+
+
+/* References:
+    API, LibCal
+    https://cal.library.unlv.edu/admin/api/authentication
+*/
+
+
+    // Display this many events, if there are more, skip the rest.
+define ('MAX_EVENTS', 5);
+
+    // URL for requesting access token.
+define ('UNLVLIB_URL_TOKEN', 'https://cal.library.unlv.edu/1.1/oauth/token');
+
+    // Parameters for requesting access token.
+define ('UNLVLIB_PARAM_TOKEN', 'client_id=516&client_secret=03bd94cbf817b00df089b89c2ae532cb&grant_type=client_credentials');
+
+
+    // URL for requesting events.
+$today = getdate ();
+$date = $today['year'] . '-' . $today['mon'] . '-' . $today['mday'];
+define ('UNLVLIB_URL_EVENTS', 'https://cal.library.unlv.edu/1.1/events?cal_id=12058&date=' . $date . '&days=365&limit=' . MAX_EVENTS);
+
+
+    // Storage for error
+    // Only when $err_signal is true, look at $err_msg.
+$err_signal = FALSE;
+$err_msg = '';
+
+ 
+    // Long / short names for each month.
+$month_names = array (
+    '01'    => array ( 'l' => 'January',    's' => 'JAN' ),
+    '02'    => array ( 'l' => 'February',   's' => 'FEB' ),
+    '03'    => array ( 'l' => 'March',      's' => 'MAR' ),
+    '04'    => array ( 'l' => 'April',      's' => 'APR' ),
+    '05'    => array ( 'l' => 'May',        's' => 'MAY' ),
+    '06'    => array ( 'l' => 'June',       's' => 'JUN' ),
+    '07'    => array ( 'l' => 'July',       's' => 'JUL' ),
+    '08'    => array ( 'l' => 'August',     's' => 'AUG' ),
+    '09'    => array ( 'l' => 'September',  's' => 'SEP' ),
+    '10'    => array ( 'l' => 'October',    's' => 'OCT' ),
+    '11'    => array ( 'l' => 'November',   's' => 'NOV' ),
+    '12'    => array ( 'l' => 'December',   's' => 'DEC' )
+);
+
+
+
+if ( FALSE !== ($token_access = get_access_token ()) )
+    if ( FALSE !== ($events = get_events ($token_access)) )
+        print_r($events);
+    else
+        echo $err_msg;
+else
+    echo $err_msg;
+
+
+//$events = get_events ('111');
+//print_r($events);
+
+
+exit(0);
+
+
+
+// ############################################################################
+/* 2nd step
+    Now retrieve events. Returned data is in json format.
+*/
+function get_events ($token_access)
+{
+    global $err_signal, $err_msg, $month_names;
+    init_err ();
+
+
+    $http_header = array (
+        'Host: cal.library.unlv.edu',
+        'Authorization: Bearer ' . $token_access
+    );
+
+    $ch_events = curl_init();
+
+    curl_setopt ($ch_events, CURLOPT_URL, UNLVLIB_URL_EVENTS);  // Url to get to
+    curl_setopt ($ch_events, CURLOPT_HEADER, 0);            // Not including header in response
+    curl_setopt ($ch_events, CURLOPT_HTTPHEADER, $http_header);
+    curl_setopt ($ch_events, CURLOPT_RETURNTRANSFER, 1);    // return into a variable
+
+    //curl_setopt ($ch_events, CURLOPT_MAXREDIRS, 5); // allow redirects
+    //curl_setopt ($ch_events, CURLOPT_FOLLOWLOCATION, 1); // allow redirects
+    //curl_setopt ($ch_events, CURLOPT_USERAGENT, $userAgent);
+
+    $data = curl_exec ($ch_events);
+    curl_close ($ch_events);
+
+    // Printing returned data, to check data structure.
+    //echo $data, "\n\n";
+
+    $events_data = json_decode ($data, TRUE);
+    //echo $events_data, "\n\n";
+
+        // Handle error event.
+    if ( isset ($events_data['error']) )
+    {
+        $err_signal = TRUE;
+        $err_msg = "Sorry, an error occured while retrieving events details. We are working on it. Please be patient. Thank you.";
+        return FALSE;
+    }
+
+
+
+/*
+$data = '{"events":[{"id":6237513,"title":"Transfer Student Mixer","allday":false,"start":"2020-01-22T13:30:00-08:00","end":"2020-01-22T16:30:00-08:00","description":"","url":{"public":"https:\/\/cal.library.unlv.edu\/event\/6237513","admin":"https:\/\/cal.library.unlv.edu\/aevent.php?c=12058&m=edit&event_id=6237513"},"location":{"id":3685,"type":0,"name":"Lied Library - Goldfield Room - 3rd floor"},"campus":{"id":1291,"name":"UNLV"},"audience":[{"id":2345,"name":"Graduate Students"},{"id":2346,"name":"Undergraduate Students"}],"category":[{"id":47711,"name":"Library Event"}],"owner":{"id":21433,"name":"Lonnie Marshall"},"presenter":"","calendar":{"id":12058,"name":"Library External Events","public":"https:\/\/cal.library.unlv.edu\/calendar?cid=12058","admin":"https:\/\/cal.library.unlv.edu\/admin\/calendar\/12058"},"seats":"","registration":false,"color":"#B3C8EF","featured_image":"","geolocation":null,"future_dates":[]},{"id":6237518,"title":"Sophomore Social","allday":false,"start":"2020-01-23T13:30:00-08:00","end":"2020-01-23T16:30:00-08:00","description":"","url":{"public":"https:\/\/cal.library.unlv.edu\/event\/6237518","admin":"https:\/\/cal.library.unlv.edu\/aevent.php?c=12058&m=edit&event_id=6237518"},"location":{"id":3685,"type":0,"name":"Lied Library - Goldfield Room - 3rd floor"},"campus":{"id":1291,"name":"UNLV"},"audience":[{"id":2345,"name":"Graduate Students"},{"id":2346,"name":"Undergraduate Students"}],"category":[{"id":47711,"name":"Library Event"}],"owner":{"id":21433,"name":"Lonnie Marshall"},"presenter":"","calendar":{"id":12058,"name":"Library External Events","public":"https:\/\/cal.library.unlv.edu\/calendar?cid=12058","admin":"https:\/\/cal.library.unlv.edu\/admin\/calendar\/12058"},"seats":"","registration":false,"color":"#B3C8EF","featured_image":"","geolocation":null,"future_dates":[]}]}';
+
+
+    $events_data = json_decode($data, TRUE);
+*/
+
+        // All events are within this array.
+    $events = $events_data['events'];
+//print_r ($events);
+
+    $return_str = "<div id='events-block'>\n";
+
+    $cnt_events = 0;
+    foreach ( $events as $event )
+    {
+        $cnt_events++;
+        if ( $cnt_events > MAX_EVENTS )
+            break;
+
+            // All relevant fields.
+        $title  = $event['title'];
+        $start  = $event['start'];
+        $end    = $event['end'];
+        $url    = $event['url']['public'];
+        $description = $event['description'];
+        $location = $event['location']['name'];
+
+            // Need to split start/end date/time into pieces.
+        $start_date = split_date ($start);
+        $start_year = $start_date[0];
+        $start_month = $start_date[1];
+        $start_day = $start_date[2];
+
+        $end_date = split_date ($end);
+        $end_year = $end_date[0];
+        $end_month = $end_date[1];
+        $end_day = $end_date[2];
+
+            // Dates for event.
+        $return_str .= '
+    <div class="views-row">
+        <div class="views-field views-field-field-event-date-end">
+            <div class="field-content">' . $month_names[$start_month]['l'] . ' ' . $start_day . ', ' . $start_year . '<br><span style="font-size:.8em;font-weight:bold;">' . $location . '</span></div>
+        </div>';
+
+        $return_str .= '
+        <div class="views-field views-field-created">
+            <span class="field-content">
+                <h5>' . $start_day . '</h5>
+                <br>
+                <h6>' . $month_names[$start_month]['s'] . '</h6>
+            </span>
+        </div>
+
+        <div class="views-field views-field-body">
+            <span class="field-content">
+                <a href="' . $url . '" hreflang="en">' . $title . '</a>
+                ' . $description . '
+            </span>
+        </div>';
+
+        $return_str .= '
+    </div>';
+    }
+    $return_str .= "\n</div>\n";
+
+    return $return_str;
+}
+
+
+// ############################################################################
+/* 1st step
+    Obtaining an Access Token, from token server, using POST method.
+*/
+function get_access_token ()
+{
+    global $err_signal, $err_msg;
+    init_err ();
+
+    $ch_token = curl_init();
+
+    curl_setopt ($ch_token, CURLOPT_URL, UNLVLIB_URL_TOKEN);            // Set url to post to
+    curl_setopt ($ch_token, CURLOPT_POST, 1);                           // Set POST method
+    curl_setopt ($ch_token, CURLOPT_POSTFIELDS, UNLVLIB_PARAM_TOKEN);   // Add POST params
+    curl_setopt ($ch_token, CURLOPT_HEADER, 0);                         // Not including header in response
+    curl_setopt ($ch_token, CURLOPT_RETURNTRANSFER,1);                  // return into a variable
+
+    $data = curl_exec ($ch_token);
+    curl_close ($ch_token);
+
+    /*
+        // Printing returned data, to check data structure.
+    print_r ($data);
+    echo "\n";
+    */
+
+    $tokens = json_decode ($data, TRUE);
+
+        // Handle error event.
+    if ( isset ($tokens['error']) )
+    {
+        $err_signal = TRUE;
+        $err_msg = "Sorry, an error occured while retrieving events. We are working on it. Please be patient. Thank you.";
+        return FALSE;
+    }
+
+    /* Sample data in json format.
+    $data = '{"access_token":"31da69594348ac4b51627f7ac6dead1ea56fad70","expires_in":3600,"token_type":"Bearer","scope":"cal_r ev_r ms_r rm_r eq_r sp_r"}';
+    */
+
+        // Now retrieve access token.
+    return $tokens['access_token'];
+}
+
+
+// ############################################################################
+function split_date ($time_string)
+// Sample $time_string: 2020-01-22T13:30:00-08:00
+{
+    $values = array ();
+    $date_time = explode ('T', $time_string);       // Split into two pieces, date and time.
+
+        // Date part.
+    $date_pieces = explode ('-', $date_time[0]);    // yyyy, mm, dd
+
+    if ( $date_pieces[2] < 10 )
+        $date_day =  $date_pieces[2][1];
+    else
+        $date_day =  $date_pieces[2];
+
+        // return array (yyyy,mm,d(d)).
+    return array ($date_pieces[0], $date_pieces[1], $date_day);
+}
+
+
+// ############################################################################
+function init_err ()
+{
+    global $err_signal, $err_msg;
+    $err_signal = FALSE;
+    $err_msg = '';
+}
+
+?>
+
