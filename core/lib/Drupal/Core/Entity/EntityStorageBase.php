@@ -514,19 +514,26 @@ abstract class EntityStorageBase extends EntityHandlerBase implements EntityStor
     // Track if this entity exists already.
     $id_exists = $this->has($id, $entity);
 
+    /*
     // A new entity should not already exist.
     if ($id_exists && $entity->isNew()) {
       throw new EntityStorageException("'{$this->entityTypeId}' entity with ID '$id' already exists.");
     }
-
+    */
     // Use the loaded revision instead of default if this is not the default revision.
     if ($id_exists && !isset($entity->original) && $entity instanceof RevisionableInterface && !$entity->isDefaultRevision()) {
       $entity->original = $this->loadRevision($entity->getLoadedRevisionId());
     }
 
     // Load the original entity, if any.
+    /*
     if ($id_exists && !isset($entity->original)) {
-      //$entity->original = $this->loadUnchanged($id);
+      $entity->original = $this->loadUnchanged($id);
+    }
+    */
+
+    // Load the original entity, if any.
+    if ($id_exists && !isset($entity->original)) {
       // Check if the entity is revisionable, loadUnchanged() will
       // not retrieve the entity in its original state if so.
       if ($entity instanceof RevisionableInterface && $entity->getEntityType()->isRevisionable() && NULL !== $entity->getLoadedRevisionId()) {
